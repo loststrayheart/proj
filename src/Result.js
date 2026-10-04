@@ -1,50 +1,98 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
+    Image,
     TouchableOpacity,
     StyleSheet,
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 
-const CARDS = [1, 2, 3];
+const Result = ({ navigation, route }) => {
+    // State ready for future database / search query results
+    const [resultsList, setResultsList] = useState(route?.params?.results || []);
 
-const Result = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header: History & Avatar */}
+                {/* Header (Back button on top left, Avatar on top right) */}
                 <View style={styles.header}>
                     <TouchableOpacity
+                        style={styles.backButton}
                         activeOpacity={0.7}
                         onPress={() => navigation?.goBack()}
                     >
-                        <Text style={styles.historyText}>History</Text>
+                        <Feather name="arrow-left" size={24} color="#111111" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.avatarPlaceholder}
+                        style={styles.avatarButton}
                         activeOpacity={0.7}
-                    />
+                        onPress={() => navigation?.navigate('Login')}
+                    >
+                        <Feather name="user" size={24} color="#111111" />
+                    </TouchableOpacity>
                 </View>
 
-                {/* Cards List */}
-                <View style={styles.cardList}>
-                    {CARDS.map((item) => (
-                        <TouchableOpacity
-                            key={item}
-                            style={styles.card}
-                            activeOpacity={0.85}
-                        >
-                            <View style={styles.imagePlaceholder} />
-                        </TouchableOpacity>
-                    ))}
+                {/* Results List */}
+                <View style={styles.listContainer}>
+                    {resultsList.length > 0 ? (
+                        resultsList.map((item, index) => (
+                            <TouchableOpacity
+                                key={item.id || index}
+                                style={styles.card}
+                                activeOpacity={0.8}
+                            >
+                                <View style={styles.songInfo}>
+                                    <Text style={styles.songTitle} numberOfLines={2}>
+                                        {item.title}
+                                    </Text>
+                                    {item.artist ? (
+                                        <Text style={styles.songArtist} numberOfLines={1}>
+                                            {item.artist}
+                                        </Text>
+                                    ) : null}
+                                </View>
+
+                                <Image
+                                    source={{ uri: 'https://static.vecteezy.com/system/resources/previews/017/395/384/non_2x/youtube-music-icon-free-png.png' }}
+                                    style={styles.ytIcon}
+                                />
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        /* UI Placeholders when data is not yet connected */
+                        <>
+                            {[1, 2, 3].map((placeholderId) => (
+                                <TouchableOpacity
+                                    key={placeholderId}
+                                    style={styles.card}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={styles.songInfo}>
+                                        <Text style={styles.songTitle} numberOfLines={1}>
+                                            Song Title
+                                        </Text>
+                                        <Text style={styles.songArtist} numberOfLines={1}>
+                                            Artist Name
+                                        </Text>
+                                    </View>
+
+                                    <Image
+                                        source={{ uri: 'https://static.vecteezy.com/system/resources/previews/017/395/384/non_2x/youtube-music-icon-free-png.png' }}
+                                        style={styles.ytIcon}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </>
+                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -54,10 +102,10 @@ const Result = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#C86452',
+        backgroundColor: '#FFF8F6',
     },
     scrollContent: {
-        paddingHorizontal: 24,
+        paddingHorizontal: 22,
         paddingTop: 12,
         paddingBottom: 40,
     },
@@ -65,37 +113,78 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: 24,
     },
-    historyText: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#000000',
-    },
-    avatarPlaceholder: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: '#F0C0B6',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
     },
-    cardList: {
+    avatarButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: '#F0C0B6',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    listContainer: {
         width: '100%',
-        gap: 18,
     },
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 4,
+        borderWidth: 1.5,
+        borderColor: '#F6D5CE',
+        borderRadius: 16,
         paddingVertical: 14,
-        paddingHorizontal: 16,
+        paddingHorizontal: 14,
         flexDirection: 'row',
         alignItems: 'center',
-        minHeight: 76,
+        marginBottom: 16,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
-    imagePlaceholder: {
-        width: 70,
-        height: 52,
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: 3,
+    songInfo: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    songTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#111111',
+        lineHeight: 18,
+    },
+    songArtist: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#777777',
+        marginTop: 2,
+    },
+    ytIcon: {
+        width: 36,
+        height: 36,
+        marginLeft: 10,
+        resizeMode: 'contain',
     },
 });
 

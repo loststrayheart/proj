@@ -1,223 +1,139 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-
-const GENRE_ROWS = [
-    ['rock', 'pop', 'jazz'],
-    ['funk', 'disco', 'punk'],
-];
-
-const MOOD_ROWS = [
-    ['sad', 'happy', 'relaxed'],
-    ['romantic', 'epic', 'peaceful'],
-];
+import { Feather } from '@expo/vector-icons';
 
 const Homeuser = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
-    const [selectedGenres, setSelectedGenres] = useState([]);
-    const [selectedMoods, setSelectedMoods] = useState([]);
 
-    const toggleGenre = (genre) => {
-        setSelectedGenres((prev) =>
-            prev.includes(genre)
-                ? prev.filter((g) => g !== genre)
-                : [...prev, genre]
-        );
-    };
-
-    const toggleMood = (mood) => {
-        setSelectedMoods((prev) =>
-            prev.includes(mood)
-                ? prev.filter((m) => m !== mood)
-                : [...prev, mood]
-        );
-    };
-
-    const handleApply = () => {
-        setShowFilters(false);
-        navigation?.navigate('Result', {
-            genres: selectedGenres,
-            moods: selectedMoods,
-        });
-    };
+    // Data states ready for future database connection
+    const [forYouList, setForYouList] = useState([]);
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity activeOpacity={0.7}>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => navigation?.navigate('History')}
+                    >
                         <Text style={styles.historyText}>History</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.avatarPlaceholder}
+                        style={styles.avatarButton}
                         activeOpacity={0.7}
-                    />
+                        onPress={() => navigation?.navigate('Login')}
+                    >
+                        <Feather name="user" size={24} color="#111111" />
+                    </TouchableOpacity>
                 </View>
 
-                <Text style={styles.appTitle}>LyriSeek</Text>
+                {/* App Title */}
+                <Text style={styles.appTitle}>
+                    Lyri<Text style={styles.appTitleHighlight}>Seek</Text>
+                </Text>
 
+                {/* For You Section */}
                 <View style={styles.forYouContainer}>
                     <Text style={styles.forYouTitle}>For You</Text>
 
                     <View style={styles.forYouCardBox}>
-                        <TouchableOpacity
-                            style={styles.songItem}
-                            activeOpacity={0.8}
-                        >
-                            <View style={styles.imagePlaceholder} />
-                            <Text
-                                style={styles.songTitle}
-                                numberOfLines={1}
-                            >
-                                song
-                            </Text>
-                        </TouchableOpacity>
+                        {forYouList.length > 0 ? (
+                            forYouList.map((song, index) => (
+                                <TouchableOpacity
+                                    key={song.id || index}
+                                    style={styles.songItem}
+                                    activeOpacity={0.8}
+                                    onPress={() => navigation?.navigate('Result')}
+                                >
+                                    <View style={styles.cardPlaceholder} />
+                                    <Text style={styles.songTitle} numberOfLines={1}>
+                                        {song.title}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))
+                        ) : (
+                            /* Placeholder UI when waiting for DB */
+                            <>
+                                <TouchableOpacity
+                                    style={styles.songItem}
+                                    activeOpacity={0.8}
+                                    onPress={() => navigation?.navigate('Result')}
+                                >
+                                    <View style={styles.cardPlaceholder} />
+                                    <Text style={styles.songTitle} numberOfLines={1}>
+                                        Song Title
+                                    </Text>
+                                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.songItem}
-                            activeOpacity={0.8}
-                        >
-                            <View style={styles.imagePlaceholder} />
-                            <Text
-                                style={styles.songTitle}
-                                numberOfLines={1}
-                            >
-                                song
-                            </Text>
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.songItem}
+                                    activeOpacity={0.8}
+                                    onPress={() => navigation?.navigate('Result')}
+                                >
+                                    <View style={styles.cardPlaceholder} />
+                                    <Text style={styles.songTitle} numberOfLines={1}>
+                                        Song Title
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </View>
                 </View>
 
+                {/* Search & Filter Section */}
                 <View style={styles.searchSection}>
                     <View style={styles.searchBar}>
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search for music"
-                            placeholderTextColor="#666666"
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            textAlign="center"
-                        />
-                        <Text style={styles.searchSubtext}>
-                            lyrics/genre/mood
-                        </Text>
+                        <Feather name="search" size={22} color="#C24A3B" style={styles.searchIcon} />
+                        <View style={styles.searchInputWrapper}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search for music"
+                                placeholderTextColor="#777777"
+                                textAlign="center"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                onSubmitEditing={() => navigation?.navigate('Result')}
+                            />
+                            <Text style={styles.searchSubtext}>lyrics/genre/mood</Text>
+                        </View>
+                        <TouchableOpacity activeOpacity={0.7} style={styles.micButton}>
+                            <Feather name="mic" size={22} color="#C24A3B" />
+                        </TouchableOpacity>
                     </View>
 
+                    {/* Filter Toggle Button */}
                     <TouchableOpacity
-                        style={[
-                            styles.filterButton,
-                            showFilters && styles.filterButtonActive,
-                        ]}
+                        style={[styles.filterButton, showFilters && styles.filterButtonActive]}
                         activeOpacity={0.8}
-                        onPress={() => setShowFilters((prev) => !prev)}
+                        onPress={() => setShowFilters(!showFilters)}
                     >
+                        <Feather name="filter" size={14} color="#C24A3B" style={styles.filterIcon} />
                         <Text style={styles.filterText}>FILTERS</Text>
                     </TouchableOpacity>
 
+                    {/* Collapsible Filter Panel (empty - ready for DB) */}
                     {showFilters && (
                         <View style={styles.filterPanel}>
-
-                            <View style={styles.filterRowSection}>
-                                <View style={styles.filterLabelContainer}>
-                                    <Text style={styles.filterSectionTitle}>
-                                        GENRE
-                                    </Text>
-                                </View>
-                                <View style={styles.tagGridContainer}>
-                                    {GENRE_ROWS.map((row, rowIndex) => (
-                                        <View
-                                            key={rowIndex}
-                                            style={styles.tagsRow}
-                                        >
-                                            {row.map((genre) => {
-                                                const isSelected =
-                                                    selectedGenres.includes(genre);
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={genre}
-                                                        style={[
-                                                            styles.tagPill,
-                                                            isSelected &&
-                                                            styles.tagPillSelected,
-                                                        ]}
-                                                        activeOpacity={0.7}
-                                                        onPress={() =>
-                                                            toggleGenre(genre)
-                                                        }
-                                                    >
-                                                        <Text
-                                                            style={[
-                                                                styles.tagText,
-                                                                isSelected &&
-                                                                styles.tagTextSelected,
-                                                            ]}
-                                                        >
-                                                            {genre}
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                );
-                                            })}
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-
-                            <View style={styles.filterRowSection}>
-                                <View style={styles.filterLabelContainer}>
-                                    <Text style={styles.filterSectionTitle}>
-                                        MOOD
-                                    </Text>
-                                </View>
-                                <View style={styles.tagGridContainer}>
-                                    {MOOD_ROWS.map((row, rowIndex) => (
-                                        <View
-                                            key={rowIndex}
-                                            style={styles.tagsRow}
-                                        >
-                                            {row.map((mood) => {
-                                                const isSelected =
-                                                    selectedMoods.includes(mood);
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={mood}
-                                                        style={[
-                                                            styles.tagPill,
-                                                            isSelected &&
-                                                            styles.tagPillSelected,
-                                                        ]}
-                                                        activeOpacity={0.7}
-                                                        onPress={() =>
-                                                            toggleMood(mood)
-                                                        }
-                                                    >
-                                                        <Text
-                                                            style={[
-                                                                styles.tagText,
-                                                                isSelected &&
-                                                                styles.tagTextSelected,
-                                                            ]}
-                                                        >
-                                                            {mood}
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                );
-                                            })}
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-
                             <TouchableOpacity
                                 style={styles.applyButton}
                                 activeOpacity={0.85}
-                                onPress={handleApply}
+                                onPress={() => navigation?.navigate('Result')}
                             >
                                 <Text style={styles.applyButtonText}>apply</Text>
                             </TouchableOpacity>
@@ -232,10 +148,10 @@ const Homeuser = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#C86452',
+        backgroundColor: '#FFF8F6',
     },
     scrollContent: {
-        paddingHorizontal: 24,
+        paddingHorizontal: 22,
         paddingTop: 12,
         paddingBottom: 40,
     },
@@ -243,42 +159,56 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 16,
     },
     historyText: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#000000',
+        color: '#111111',
     },
-    avatarPlaceholder: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
+    avatarButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: '#F0C0B6',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
     },
     appTitle: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#FFFFFF',
+        color: '#1F1F1F',
         textAlign: 'center',
-        marginVertical: 16,
+        marginVertical: 12,
+        letterSpacing: 0.5,
+    },
+    appTitleHighlight: {
+        color: '#C24A3B',
     },
     forYouContainer: {
-        marginTop: 8,
-        marginBottom: 24,
+        marginTop: 6,
+        marginBottom: 20,
     },
     forYouTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#000000',
+        color: '#111111',
         marginBottom: 10,
         marginLeft: 4,
     },
     forYouCardBox: {
+        backgroundColor: '#FDEEEB',
         borderWidth: 1.5,
-        borderColor: '#000000',
+        borderColor: '#F6D5CE',
         borderRadius: 24,
-        paddingVertical: 18,
+        paddingVertical: 16,
         paddingHorizontal: 12,
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -287,17 +217,17 @@ const styles = StyleSheet.create({
         width: '46%',
         alignItems: 'center',
     },
-    imagePlaceholder: {
+    cardPlaceholder: {
         width: '100%',
-        aspectRatio: 1.2,
-        backgroundColor: 'rgba(0, 0, 0, 0.25)',
-        borderRadius: 8,
+        aspectRatio: 1.15,
+        backgroundColor: '#EACCC5',
+        borderRadius: 12,
         marginBottom: 8,
     },
     songTitle: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#FFFFFF',
+        color: '#111111',
         textAlign: 'center',
     },
     searchSection: {
@@ -307,97 +237,78 @@ const styles = StyleSheet.create({
     searchBar: {
         backgroundColor: '#FFFFFF',
         borderRadius: 30,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+        elevation: 2,
+    },
+    searchIcon: {
+        marginRight: 6,
+    },
+    searchInputWrapper: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
     },
     searchInput: {
         width: '100%',
-        fontSize: 16,
+        fontSize: 15,
         color: '#333333',
         fontWeight: '500',
         padding: 0,
+        textAlign: 'center',
     },
     searchSubtext: {
         fontSize: 11,
-        color: '#777777',
+        color: '#888888',
         marginTop: 2,
+        textAlign: 'center',
+    },
+    micButton: {
+        marginLeft: 6,
+        padding: 2,
     },
     filterButton: {
+        backgroundColor: '#FFFFFF',
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
+        borderColor: '#F0C0B6',
         borderRadius: 20,
         paddingVertical: 6,
-        paddingHorizontal: 20,
+        paddingHorizontal: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
         alignSelf: 'flex-start',
-        marginTop: 12,
-        marginLeft: 8,
+        marginTop: 14,
+        marginLeft: 4,
     },
     filterButtonActive: {
-        backgroundColor: '#A84B3B',
-        borderColor: '#FFFFFF',
+        backgroundColor: '#FFF1EE',
+        borderColor: '#E8A599',
+    },
+    filterIcon: {
+        marginRight: 6,
     },
     filterText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: 'bold',
-        color: '#FFFFFF',
+        color: '#B84A3B',
         letterSpacing: 0.5,
     },
     filterPanel: {
+        backgroundColor: '#FDEEEB',
         borderWidth: 1.5,
-        borderColor: '#000000',
+        borderColor: '#F6D5CE',
         borderRadius: 24,
-        paddingVertical: 20,
-        paddingHorizontal: 16,
-        marginTop: 14,
-    },
-    filterRowSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    filterLabelContainer: {
-        width: 68,
-        justifyContent: 'center',
-    },
-    filterSectionTitle: {
-        fontSize: 13,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-    },
-    tagGridContainer: {
-        flex: 1,
-    },
-    tagsRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-start',
-        marginVertical: 3,
-    },
-    tagPill: {
-        backgroundColor: '#B55747',
-        borderRadius: 14,
-        paddingVertical: 5,
+        paddingVertical: 18,
         paddingHorizontal: 14,
-        marginHorizontal: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    tagPillSelected: {
-        backgroundColor: '#FFFFFF',
-    },
-    tagText: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-    },
-    tagTextSelected: {
-        color: '#C86452',
+        marginTop: 12,
+        minHeight: 60,
     },
     applyButton: {
         backgroundColor: '#FFFFFF',
@@ -405,13 +316,16 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         paddingHorizontal: 22,
         alignSelf: 'flex-end',
-        marginTop: 8,
-        marginRight: 4,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
+        elevation: 1,
     },
     applyButtonText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#C86452',
+        color: '#B84A3B',
     },
 });
 

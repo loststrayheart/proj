@@ -5,7 +5,13 @@ import Login from './src/Login';
 import Register from './src/Register';
 import Otp from './src/Otp';
 import Homeuser from './src/Homeuser';
+import Homeadmin from './src/Homeadmin';
+import AddSong from './src/AddSong';
+import UpdateModel from './src/UpdateModel';
+import AddCategory from './src/AddCategory';
+import MostSearch from './src/MostSearch';
 import Result from './src/Result';
+import History from './src/History';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,8 +40,32 @@ export default function App() {
             component={Homeuser}
           />
           <Stack.Screen
+            name="Homeadmin"
+            component={Homeadmin}
+          />
+          <Stack.Screen
+            name="AddSong"
+            component={AddSong}
+          />
+          <Stack.Screen
+            name="UpdateModel"
+            component={UpdateModel}
+          />
+          <Stack.Screen
+            name="AddCategory"
+            component={AddCategory}
+          />
+          <Stack.Screen
+            name="MostSearch"
+            component={MostSearch}
+          />
+          <Stack.Screen
             name="Result"
             component={Result}
+          />
+          <Stack.Screen
+            name="History"
+            component={History}
           />
         </Stack.Navigator>
       </NavigationContainer>
