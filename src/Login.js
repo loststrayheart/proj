@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -10,29 +10,116 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
 const GOOGLE_LOGO_URI =
     'https://media.wired.com/photos/5926ffe47034dc5f91bed4e8/3:2/w_1920,c_limit/google-logo.jpg';
 
 const Login = ({ navigation }) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async () => {
+        const input = email.trim();
+
+        if (!input || !password) {
+            Alert.alert(
+                'แจ้งเตือน',
+                'กรุณากรอก Username หรือ Email และ Password'
+            );
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+            let loginEmail;
+
+            if (isEmail) {
+                // กรอก Email โดยตรง
+                loginEmail = input.toLowerCase();
+            } else {
+                // กรอก Username: ค้นหา Email ก่อน
+                const { data: foundEmail, error: lookupError } =
+                    await supabase.rpc('find_login_email', {
+                        input_username: input,
+                    });
+
+                if (lookupError) {
+                    console.log('Username lookup error:', lookupError);
+
+                    Alert.alert(
+                        'เข้าสู่ระบบไม่สำเร็จ',
+                        'ไม่สามารถค้นหา Username ได้ กรุณาลองใหม่'
+                    );
+                    return;
+                }
+
+                if (!foundEmail) {
+                    Alert.alert(
+                        'เข้าสู่ระบบไม่สำเร็จ',
+                        'ไม่พบ Username นี้'
+                    );
+                    return;
+                }
+
+                loginEmail = foundEmail;
+            }
+
+            // ตรวจสอบ Email และ Password ด้วย Supabase Auth
+            const { data, error } =
+                await supabase.auth.signInWithPassword({
+                    email: loginEmail,
+                    password,
+                });
+
+            if (error) {
+                console.log('Login error:', error.message);
+
+                Alert.alert(
+                    'เข้าสู่ระบบไม่สำเร็จ',
+                    'Username/Email หรือ Password ไม่ถูกต้อง หรือบัญชียังไม่ได้ยืนยันอีเมล'
+                );
+                return;
+            }
+
+            if (data.session) {
+                navigation?.navigate('Homeuser');
+            }
+        } catch (error) {
+            console.log('Unexpected login error:', error);
+
+            Alert.alert(
+                'เกิดข้อผิดพลาด',
+                'กรุณาลองใหม่อีกครั้ง'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar style="light" />
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    behavior={
+                        Platform.OS === 'ios' ? 'padding' : undefined
+                    }
                     style={styles.content}
                 >
                     <Text style={styles.title}>Login</Text>
 
                     <View style={styles.formContainer}>
-
-                        {/* Username or E-mail Input */}
+                        {/* Username or Email */}
                         <View style={styles.inputContainer}>
                             <Feather
                                 name="user"
@@ -44,12 +131,17 @@ const Login = ({ navigation }) => {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Username or E-mail"
-                                placeholderTextColor="rgba(255, 255, 255, 0.55)"
+                                placeholderTextColor="rgba(255,255,255,0.55)"
+                                keyboardType="email-address"
                                 autoCapitalize="none"
+                                autoCorrect={false}
+                                value={email}
+                                onChangeText={setEmail}
+                                editable={!loading}
                             />
                         </View>
 
-                        {/* Password Input */}
+                        {/* Password */}
                         <View style={styles.inputContainer}>
                             <Feather
                                 name="lock"
@@ -61,29 +153,34 @@ const Login = ({ navigation }) => {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Password"
-                                placeholderTextColor="rgba(255, 255, 255, 0.55)"
+                                placeholderTextColor="rgba(255,255,255,0.55)"
                                 secureTextEntry
+                                autoCapitalize="none"
+                                value={password}
+                                onChangeText={setPassword}
+                                editable={!loading}
                             />
                         </View>
 
                         {/* Login Button */}
                         <TouchableOpacity
-                            style={styles.loginButton}
+                            style={[
+                                styles.loginButton,
+                                loading && styles.disabledButton,
+                            ]}
                             activeOpacity={0.85}
-                            onPress={() =>
-                                navigation?.navigate('Homeuser')
-                            }
+                            onPress={handleLogin}
+                            disabled={loading}
                         >
                             <Text style={styles.loginButtonText}>
-                                Login!
+                                {loading ? 'Logging in...' : 'Login!'}
                             </Text>
                         </TouchableOpacity>
 
-                        {/* Don't have an account? Sign up */}
+                        {/* Sign up */}
                         <View style={styles.signupContainer}>
                             <Text style={styles.signupText}>
                                 Don't have an account?{' '}
-
                                 <Text
                                     style={styles.signupLink}
                                     onPress={() =>
@@ -95,13 +192,14 @@ const Login = ({ navigation }) => {
                             </Text>
                         </View>
 
-                        {/* Or Divider */}
+                        {/* Divider */}
                         <Text style={styles.orText}>Or</Text>
 
-                        {/* Continue with Google Button */}
+                        {/* Google button - UI only */}
                         <TouchableOpacity
                             style={styles.googleButton}
                             activeOpacity={0.85}
+                            disabled={loading}
                         >
                             <Image
                                 source={{ uri: GOOGLE_LOGO_URI }}
@@ -113,7 +211,6 @@ const Login = ({ navigation }) => {
                                 Continue with Google
                             </Text>
                         </TouchableOpacity>
-
                     </View>
                 </KeyboardAvoidingView>
             </TouchableWithoutFeedback>
@@ -149,7 +246,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.65)',
+        borderColor: 'rgba(255,255,255,0.65)',
         borderRadius: 8,
         height: 52,
         paddingHorizontal: 14,
@@ -176,6 +273,10 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
 
+    disabledButton: {
+        opacity: 0.6,
+    },
+
     loginButtonText: {
         fontSize: 19,
         fontWeight: '500',
@@ -188,12 +289,12 @@ const styles = StyleSheet.create({
     },
 
     signupText: {
-        color: 'rgba(255, 255, 255, 0.9)',
+        color: 'rgba(255,255,255,0.9)',
         fontSize: 13,
     },
 
     signupLink: {
-        color: 'rgba(255, 255, 255, 0.95)',
+        color: 'rgba(255,255,255,0.95)',
         fontWeight: '400',
     },
 

@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
-
 import { supabase } from '../lib/supabase';
 
 const GOOGLE_LOGO_URI =
@@ -25,18 +24,20 @@ const GOOGLE_LOGO_URI =
 const Register = ({ navigation }) => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleCreate = async () => {
-        // =========================
-        // Validate Username
-        // =========================
-        if (!username.trim()) {
+        const cleanUsername = username.trim();
+        const cleanEmail = email.trim().toLowerCase();
+
+        if (!cleanUsername) {
             Alert.alert('แจ้งเตือน', 'กรุณากรอก Username');
             return;
         }
 
-        if (username.trim().length > 25) {
+        if (cleanUsername.length > 25) {
             Alert.alert(
                 'แจ้งเตือน',
                 'Username ต้องมีความยาวไม่เกิน 25 ตัวอักษร'
@@ -44,75 +45,69 @@ const Register = ({ navigation }) => {
             return;
         }
 
-        // =========================
-        // Validate Email
-        // =========================
-        if (!email.trim()) {
+        if (!cleanEmail) {
             Alert.alert('แจ้งเตือน', 'กรุณากรอก Email');
             return;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!emailRegex.test(email.trim())) {
+        if (!emailRegex.test(cleanEmail)) {
             Alert.alert('แจ้งเตือน', 'กรุณากรอก Email ให้ถูกต้อง');
+            return;
+        }
+
+        if (password.length < 6) {
+            Alert.alert(
+                'แจ้งเตือน',
+                'Password ต้องมีอย่างน้อย 6 ตัวอักษร'
+            );
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            Alert.alert(
+                'แจ้งเตือน',
+                'Password และ Confirm Password ไม่ตรงกัน'
+            );
             return;
         }
 
         setLoading(true);
 
         try {
-            const emailToSend = email.trim().toLowerCase();
-
-            // =========================
-            // DEBUG LOG
-            // =========================
-            console.log('========== SEND OTP ==========');
-            console.log(
-                'Supabase URL:',
-                process.env.EXPO_PUBLIC_SUPABASE_URL
-            );
-            console.log('Email:', emailToSend);
-
-            // =========================
-            // Send OTP
-            // =========================
-            const { data, error } = await supabase.auth.signInWithOtp({
-                email: emailToSend,
+            const { data, error } = await supabase.auth.signUp({
+                email: cleanEmail,
+                password: password,
+                options: {
+                    data: {
+                        username: cleanUsername,
+                    },
+                },
             });
 
-            // =========================
-            // DEBUG RESULT
-            // =========================
-            console.log('OTP data:', data);
-            console.log('OTP error:', error);
-            console.log('==============================');
-
-            // =========================
-            // Check Error
-            // =========================
             if (error) {
+                Alert.alert('สมัครสมาชิกไม่สำเร็จ', error.message);
+                return;
+            }
+
+            if (!data.user) {
                 Alert.alert(
                     'เกิดข้อผิดพลาด',
-                    error.message
+                    'ไม่สามารถสร้างบัญชีได้ กรุณาลองใหม่'
                 );
                 return;
             }
 
-            // =========================
-            // Go to OTP page
-            // =========================
+            // ส่งข้อมูลไปหน้า OTP
             navigation.navigate('Otp', {
-                email: emailToSend,
-                username: username.trim(),
+                email: cleanEmail,
+                username: cleanUsername,
             });
-
         } catch (error) {
-            console.log('Send OTP error:', error);
-
             Alert.alert(
                 'เกิดข้อผิดพลาด',
-                'ไม่สามารถส่ง OTP ได้ กรุณาลองใหม่อีกครั้ง'
+                error.message || 'กรุณาลองใหม่อีกครั้ง'
             );
         } finally {
             setLoading(false);
@@ -126,9 +121,7 @@ const Register = ({ navigation }) => {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <KeyboardAvoidingView
                     behavior={
-                        Platform.OS === 'ios'
-                            ? 'padding'
-                            : undefined
+                        Platform.OS === 'ios' ? 'padding' : undefined
                     }
                     style={styles.keyboardAvoid}
                 >
@@ -142,7 +135,6 @@ const Register = ({ navigation }) => {
                         </Text>
 
                         <View style={styles.formContainer}>
-
                             {/* Username */}
                             <View style={styles.inputContainer}>
                                 <Feather
@@ -155,8 +147,9 @@ const Register = ({ navigation }) => {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Username"
-                                    placeholderTextColor="rgba(255, 255, 255, 0.55)"
+                                    placeholderTextColor="rgba(255,255,255,0.55)"
                                     autoCapitalize="none"
+                                    autoCorrect={false}
                                     value={username}
                                     onChangeText={setUsername}
                                     maxLength={25}
@@ -176,12 +169,54 @@ const Register = ({ navigation }) => {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="E-mail"
-                                    placeholderTextColor="rgba(255, 255, 255, 0.55)"
+                                    placeholderTextColor="rgba(255,255,255,0.55)"
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     value={email}
                                     onChangeText={setEmail}
+                                    editable={!loading}
+                                />
+                            </View>
+
+                            {/* Password */}
+                            <View style={styles.inputContainer}>
+                                <Feather
+                                    name="lock"
+                                    size={20}
+                                    color="#1A1A1A"
+                                    style={styles.inputIcon}
+                                />
+
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Password"
+                                    placeholderTextColor="rgba(255,255,255,0.55)"
+                                    secureTextEntry
+                                    autoCapitalize="none"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    editable={!loading}
+                                />
+                            </View>
+
+                            {/* Confirm Password */}
+                            <View style={styles.inputContainer}>
+                                <Feather
+                                    name="lock"
+                                    size={20}
+                                    color="#1A1A1A"
+                                    style={styles.inputIcon}
+                                />
+
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Confirm Password"
+                                    placeholderTextColor="rgba(255,255,255,0.55)"
+                                    secureTextEntry
+                                    autoCapitalize="none"
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
                                     editable={!loading}
                                 />
                             </View>
@@ -197,27 +232,20 @@ const Register = ({ navigation }) => {
                                 disabled={loading}
                             >
                                 <Text style={styles.createButtonText}>
-                                    {loading
-                                        ? 'Sending...'
-                                        : 'Create'}
+                                    {loading ? 'Creating...' : 'Create'}
                                 </Text>
                             </TouchableOpacity>
 
-                            {/* Or */}
-                            <Text style={styles.orText}>
-                                Or
-                            </Text>
+                            <Text style={styles.orText}>Or</Text>
 
-                            {/* Google */}
+                            {/* Google button - UI only */}
                             <TouchableOpacity
                                 style={styles.googleButton}
                                 activeOpacity={0.85}
                                 disabled={loading}
                             >
                                 <Image
-                                    source={{
-                                        uri: GOOGLE_LOGO_URI,
-                                    }}
+                                    source={{ uri: GOOGLE_LOGO_URI }}
                                     style={styles.googleIcon}
                                     resizeMode="contain"
                                 />
@@ -227,6 +255,15 @@ const Register = ({ navigation }) => {
                                 </Text>
                             </TouchableOpacity>
 
+                            <TouchableOpacity
+                                style={styles.loginLinkContainer}
+                                onPress={() => navigation.navigate('Login')}
+                                disabled={loading}
+                            >
+                                <Text style={styles.loginLinkText}>
+                                    Already have an account? Login
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -268,7 +305,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.65)',
+        borderColor: 'rgba(255,255,255,0.65)',
         borderRadius: 8,
         height: 52,
         paddingHorizontal: 14,
@@ -335,6 +372,16 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#3C4043',
         fontWeight: '500',
+    },
+
+    loginLinkContainer: {
+        alignItems: 'center',
+        marginTop: 22,
+    },
+
+    loginLinkText: {
+        fontSize: 13,
+        color: '#FFFFFF',
     },
 });
 

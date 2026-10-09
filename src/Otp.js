@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -9,24 +9,185 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
-const Otp = ({ navigation }) => {
+const Otp = ({ navigation, route }) => {
+    const [otp, setOtp] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const email = route?.params?.email;
+    const username = route?.params?.username;
+
+    // ตรวจสอบ OTP และบันทึกข้อมูลผู้ใช้
+    const handleVerify = async () => {
+        if (!email) {
+            Alert.alert(
+                'เกิดข้อผิดพลาด',
+                'ไม่พบ Email กรุณาสมัครสมาชิกใหม่อีกครั้ง'
+            );
+            return;
+        }
+
+        if (!otp.trim()) {
+            Alert.alert('แจ้งเตือน', 'กรุณากรอกรหัส OTP');
+            return;
+        }
+
+        if (!username?.trim()) {
+            Alert.alert(
+                'เกิดข้อผิดพลาด',
+                'ไม่พบ Username กรุณาตรวจสอบหน้า Register'
+            );
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            // 1. ตรวจสอบ OTP
+            const { data, error } = await supabase.auth.verifyOtp({
+                email: email.trim().toLowerCase(),
+                token: otp.trim(),
+                type: 'signup',
+            });
+
+            if (error) {
+                Alert.alert(
+                    'ยืนยันไม่สำเร็จ',
+                    'OTP ไม่ถูกต้องหรือหมดอายุ กรุณาตรวจสอบอีกครั้ง'
+                );
+                return;
+            }
+
+            // 2. รับข้อมูลบัญชีจาก Supabase Auth
+            const user = data.user;
+
+            if (!user) {
+                Alert.alert(
+                    'เกิดข้อผิดพลาด',
+                    'ยืนยัน OTP แล้ว แต่ไม่พบข้อมูลบัญชีผู้ใช้'
+                );
+                return;
+            }
+
+            // 3. บันทึกข้อมูลลง public.users
+            const { error: profileError } = await supabase
+                .from('users')
+                .upsert(
+                    {
+                        users_id: user.id,
+                        username: username.trim(),
+                        email: user.email,
+                    },
+                    {
+                        onConflict: 'users_id',
+                    }
+                );
+
+            if (profileError) {
+                console.log('Profile save error:', profileError);
+
+                Alert.alert(
+                    'ยืนยันอีเมลสำเร็จ',
+                    'แต่บันทึกข้อมูลผู้ใช้ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ RLS และตาราง users'
+                );
+                return;
+            }
+
+            // 4. บันทึกข้อมูลสำเร็จแล้วจึงไปหน้า Login
+            Alert.alert(
+                'สำเร็จ',
+                'ยืนยัน Email และสมัครสมาชิกเรียบร้อยแล้ว',
+                [
+                    {
+                        text: 'ตกลง',
+                        onPress: async () => {
+                            // ออกจาก Session หลังสมัคร
+                            // เพื่อให้ผู้ใช้ Login จากหน้า Login อีกครั้ง
+                            await supabase.auth.signOut();
+                            navigation?.navigate('Login');
+                        },
+                    },
+                ]
+            );
+        } catch (error) {
+            console.log('Verify error:', error);
+
+            Alert.alert(
+                'เกิดข้อผิดพลาด',
+                'ไม่สามารถยืนยัน OTP ได้ กรุณาลองใหม่'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ส่ง OTP ใหม่
+    const handleResend = async () => {
+        if (!email) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่พบ Email');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: email.trim().toLowerCase(),
+            });
+
+            if (error) {
+                Alert.alert(
+                    'ส่ง OTP ไม่สำเร็จ',
+                    error.message
+                );
+                return;
+            }
+
+            setOtp('');
+
+            Alert.alert(
+                'สำเร็จ',
+                'ส่ง OTP ใหม่ไปยัง Email ของคุณแล้ว'
+            );
+        } catch (error) {
+            Alert.alert(
+                'เกิดข้อผิดพลาด',
+                'ไม่สามารถส่ง OTP ใหม่ได้'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar style="dark" />
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    behavior={
+                        Platform.OS === 'ios'
+                            ? 'padding'
+                            : undefined
+                    }
                     style={styles.content}
                 >
                     <Text style={styles.title}>
                         Enter your OTP code{'\n'}to sign up
                     </Text>
+
+                    {email ? (
+                        <Text style={styles.emailText}>
+                            OTP sent to {email}
+                        </Text>
+                    ) : null}
 
                     <View style={styles.inputContainer}>
                         <Feather
@@ -41,22 +202,33 @@ const Otp = ({ navigation }) => {
                             keyboardType="number-pad"
                             placeholder="OTP code"
                             placeholderTextColor="#333333"
+                            value={otp}
+                            onChangeText={setOtp}
+                            maxLength={10}
+                            autoCapitalize="none"
+                            editable={!loading}
                         />
                     </View>
 
                     <TouchableOpacity
-                        style={styles.verifyButton}
+                        style={[
+                            styles.verifyButton,
+                            loading && styles.disabledButton,
+                        ]}
                         activeOpacity={0.85}
-                        onPress={() => navigation?.navigate('Login')}
+                        onPress={handleVerify}
+                        disabled={loading}
                     >
                         <Text style={styles.verifyButtonText}>
-                            Verify
+                            {loading ? 'Please wait...' : 'Verify'}
                         </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.resendButton}
                         activeOpacity={0.6}
+                        onPress={handleResend}
+                        disabled={loading}
                     >
                         <Text style={styles.resendText}>
                             resend OTP
@@ -86,8 +258,15 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#1A1A1A',
         textAlign: 'center',
-        marginBottom: 44,
+        marginBottom: 20,
         lineHeight: 40,
+    },
+
+    emailText: {
+        fontSize: 14,
+        color: '#555555',
+        textAlign: 'center',
+        marginBottom: 24,
     },
 
     inputContainer: {
@@ -121,6 +300,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8,
+    },
+
+    disabledButton: {
+        opacity: 0.6,
     },
 
     verifyButtonText: {
