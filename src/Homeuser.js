@@ -6,17 +6,140 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
+    Alert,
+    Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import {
+    useAudioRecorder,
+    requestRecordingPermissionsAsync,
+    setAudioModeAsync,
+    RecordingPresets,
+    IOSOutputFormat,
+    AudioQuality,
+} from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
+
+// ตั้งค่าการอัดเสียงให้รองรับ Google Speech-to-Text
+const RECORDING_OPTIONS =
+    Platform.OS === 'ios'
+        ? {
+            ...RecordingPresets.HIGH_QUALITY,
+            extension: '.wav',
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            ios: {
+                outputFormat: IOSOutputFormat.LINEARPCM,
+                audioQuality: AudioQuality.HIGH,
+                linearPCMBitDepth: 16,
+                linearPCMIsBigEndian: false,
+                linearPCMIsFloat: false,
+            },
+        }
+        : {
+            ...RecordingPresets.HIGH_QUALITY,
+            extension: '.amr',
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 23850,
+            android: {
+                outputFormat: 'amrwb',
+                audioEncoder: 'amr_wb',
+            },
+        };
+
+const GOOGLE_AUDIO_CONFIG =
+    Platform.OS === 'ios'
+        ? { encoding: 'LINEAR16', sampleRateHertz: 16000 }
+        : { encoding: 'AMR_WB', sampleRateHertz: 16000 };
 
 const Homeuser = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
-
-    // Data states ready for future database connection
     const [forYouList, setForYouList] = useState([]);
+    const [isRecording, setIsRecording] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+
+    const recorder = useAudioRecorder(RECORDING_OPTIONS);
+
+    const startRecording = async () => {
+        try {
+            const permission = await requestRecordingPermissionsAsync();
+            if (!permission.granted) {
+                Alert.alert('คำเตือน', 'กรุณาอนุญาตการใช้งานไมโครโฟน');
+                return;
+            }
+            await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+            await recorder.prepareToRecordAsync();
+            recorder.record();
+            setIsRecording(true);
+        } catch (err) {
+            console.error('Failed to start recording:', err);
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดไมโครโฟนได้');
+        }
+    };
+
+    const stopRecording = async () => {
+        setIsRecording(false);
+        setIsTranscribing(true);
+        try {
+            await recorder.stop();
+            await setAudioModeAsync({ allowsRecording: false });
+            const uri = recorder.uri;
+            if (!uri) throw new Error('ไม่พบไฟล์เสียง');
+
+            const base64Audio = await FileSystem.readAsStringAsync(uri, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+
+            const apiKey = process.env.EXPO_PUBLIC_GOOGLE_SPEECH_API_KEY;
+            if (!apiKey) {
+                Alert.alert('ข้อผิดพลาด', 'ไม่พบ API key (ลอง npx expo start -c)');
+                return;
+            }
+
+            const response = await fetch(
+                `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config: { ...GOOGLE_AUDIO_CONFIG, languageCode: 'th-TH' },
+                        audio: { content: base64Audio },
+                    }),
+                }
+            );
+
+            const data = await response.json();
+            console.log('STT response:', JSON.stringify(data));
+
+            if (data.error) {
+                Alert.alert('Google API Error', data.error.message);
+            } else if (data.results?.length > 0) {
+                const transcript = data.results[0].alternatives?.[0]?.transcript?.trim() || '';
+                setSearchQuery(transcript);
+            } else {
+                Alert.alert('แจ้งเตือน', 'ไม่พบเสียงพูด หรือไม่สามารถแปลงเสียงได้');
+            }
+        } catch (error) {
+            console.error('Speech to text error:', error);
+            Alert.alert('ข้อผิดพลาด', String(error?.message || error));
+        } finally {
+            setIsTranscribing(false);
+        }
+    };
+
+    const handleMicPress = () => {
+        if (isTranscribing) return;
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -112,8 +235,21 @@ const Homeuser = ({ navigation }) => {
                             />
                             <Text style={styles.searchSubtext}>lyrics/genre/mood</Text>
                         </View>
-                        <TouchableOpacity activeOpacity={0.7} style={styles.micButton}>
-                            <Feather name="mic" size={22} color="#C24A3B" />
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            style={[styles.micButton, isRecording && styles.micButtonRecording]}
+                            onPress={handleMicPress}
+                            disabled={isTranscribing}
+                        >
+                            {isTranscribing ? (
+                                <ActivityIndicator size="small" color="#C24A3B" />
+                            ) : (
+                                <Feather
+                                    name={isRecording ? 'square' : 'mic'}
+                                    size={22}
+                                    color={isRecording ? '#E53E3E' : '#C24A3B'}
+                                />
+                            )}
                         </TouchableOpacity>
                     </View>
 
@@ -272,7 +408,11 @@ const styles = StyleSheet.create({
     },
     micButton: {
         marginLeft: 6,
-        padding: 2,
+        padding: 4,
+    },
+    micButtonRecording: {
+        backgroundColor: '#FFE5E5',
+        borderRadius: 16,
     },
     filterButton: {
         backgroundColor: '#FFFFFF',

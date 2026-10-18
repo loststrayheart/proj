@@ -16,6 +16,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_LOGO_URI =
     'https://media.wired.com/photos/5926ffe47034dc5f91bed4e8/3:2/w_1920,c_limit/google-logo.jpg';
@@ -24,6 +28,26 @@ const Login = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // ฟังก์ชันช่วยเช็ก role จากตาราง users เพื่อนำทางไปหน้า Home ที่ถูกต้อง
+    const navigateByUserRole = async (userId) => {
+        try {
+            const { data: userData, error } = await supabase
+                .from('users')
+                .select('role')
+                .eq('users_id', userId)
+                .single();
+
+            if (!error && userData?.role === 'admin') {
+                navigation?.navigate('Homeadmin');
+            } else {
+                navigation?.navigate('Homeuser');
+            }
+        } catch (err) {
+            console.log('Error checking role:', err);
+            navigation?.navigate('Homeuser');
+        }
+    };
 
     const handleLogin = async () => {
         const input = email.trim();
@@ -43,29 +67,17 @@ const Login = ({ navigation }) => {
             let loginEmail;
 
             if (isEmail) {
-                // กรอก Email โดยตรง
                 loginEmail = input.toLowerCase();
             } else {
-                // กรอก Username: ค้นหา Email ก่อน
                 const { data: foundEmail, error: lookupError } =
                     await supabase.rpc('find_login_email', {
                         input_username: input,
                     });
 
-                if (lookupError) {
-                    console.log('Username lookup error:', lookupError);
-
+                if (lookupError || !foundEmail) {
                     Alert.alert(
                         'เข้าสู่ระบบไม่สำเร็จ',
-                        'ไม่สามารถค้นหา Username ได้ กรุณาลองใหม่'
-                    );
-                    return;
-                }
-
-                if (!foundEmail) {
-                    Alert.alert(
-                        'เข้าสู่ระบบไม่สำเร็จ',
-                        'ไม่พบ Username นี้'
+                        'ไม่พบ Username นี้ หรือเกิดข้อผิดพลาด'
                     );
                     return;
                 }
@@ -73,7 +85,6 @@ const Login = ({ navigation }) => {
                 loginEmail = foundEmail;
             }
 
-            // ตรวจสอบ Email และ Password ด้วย Supabase Auth
             const { data, error } =
                 await supabase.auth.signInWithPassword({
                     email: loginEmail,
@@ -82,7 +93,6 @@ const Login = ({ navigation }) => {
 
             if (error) {
                 console.log('Login error:', error.message);
-
                 Alert.alert(
                     'เข้าสู่ระบบไม่สำเร็จ',
                     'Username/Email หรือ Password ไม่ถูกต้อง หรือบัญชียังไม่ได้ยืนยันอีเมล'
@@ -90,16 +100,80 @@ const Login = ({ navigation }) => {
                 return;
             }
 
-            if (data.session) {
-                navigation?.navigate('Homeuser');
+            if (data.session?.user) {
+                // เช็ก role แล้วพาไปหน้าที่ถูกต้อง
+                await navigateByUserRole(data.session.user.id);
             }
         } catch (error) {
             console.log('Unexpected login error:', error);
-
             Alert.alert(
                 'เกิดข้อผิดพลาด',
                 'กรุณาลองใหม่อีกครั้ง'
             );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ฟังก์ชันสำหรับล็อกอินด้วย Google
+    const handleGoogleLogin = async () => {
+        setLoading(true);
+        try {
+            const redirectTo = AuthSession.makeRedirectUri({
+                scheme: 'lyriseek',
+                path: 'auth/callback',
+            });
+
+            console.log('Redirect URI used:', redirectTo);
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo,
+                    skipBrowserRedirect: true,
+                },
+            });
+
+            if (error) throw error;
+
+            if (data?.url) {
+                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+                if (result.type === 'success') {
+                    const { url } = result;
+                    let queryString = '';
+
+                    if (url.includes('#')) {
+                        queryString = url.split('#')[1];
+                    } else if (url.includes('?')) {
+                        queryString = url.split('?')[1];
+                    }
+
+                    const params = AuthSession.parseQueryString(queryString);
+
+                    if (params.code) {
+                        const { error: exchangeError } =
+                            await supabase.auth.exchangeCodeForSession(params.code);
+                        if (exchangeError) throw exchangeError;
+                    } else if (params.access_token && params.refresh_token) {
+                        const { error: sessionError } = await supabase.auth.setSession({
+                            access_token: params.access_token,
+                            refresh_token: params.refresh_token,
+                        });
+
+                        if (sessionError) throw sessionError;
+                    }
+
+                    // ดึงข้อมูล User ล่าสุดแล้วส่งไปเช็ก role
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        await navigateByUserRole(user.id);
+                    }
+                }
+            }
+        } catch (err) {
+            console.log('Google Login Error:', err);
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเข้าสู่ระบบด้วย Google ได้');
         } finally {
             setLoading(false);
         }
@@ -195,10 +269,11 @@ const Login = ({ navigation }) => {
                         {/* Divider */}
                         <Text style={styles.orText}>Or</Text>
 
-                        {/* Google button - UI only */}
+                        {/* Google button */}
                         <TouchableOpacity
-                            style={styles.googleButton}
+                            style={[styles.googleButton, loading && styles.disabledButton]}
                             activeOpacity={0.85}
+                            onPress={handleGoogleLogin}
                             disabled={loading}
                         >
                             <Image
