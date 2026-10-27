@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
-const Homeadmin = ({ navigation }) => {
+const Homeadmin = ({ navigation, route }) => {
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar style="dark" />
@@ -24,7 +24,10 @@ const Homeadmin = ({ navigation }) => {
                     <TouchableOpacity
                         style={styles.profileButton}
                         activeOpacity={0.7}
-                        onPress={() => navigation?.navigate('Login')}
+                        onPress={() => navigation?.navigate('AdminProfile', {
+                            userId: route?.params?.userId,
+                            username: route?.params?.username,
+                        })}
                     >
                         <Feather name="user" size={24} color="#1E1E1E" />
                     </TouchableOpacity>
@@ -162,18 +165,18 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     profileButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#FFFFFF',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#D1D1D1',
         borderWidth: 1.5,
-        borderColor: '#E8ECF2',
+        borderColor: '#C5C5C5',
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
+        shadowOpacity: 0.12,
+        shadowRadius: 3,
         elevation: 2,
     },
     titleContainer: {

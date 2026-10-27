@@ -42,7 +42,10 @@ const Login = ({ navigation }) => {
                 .single();
 
             if (!error && userData?.role === 'admin') {
-                navigation?.navigate('Homeadmin');
+                navigation?.navigate('Homeadmin', {
+                    userId: userId,
+                    username: userData?.username,
+                });
             } else {
                 navigation?.navigate('Homeuser', {
                     userId: userId,

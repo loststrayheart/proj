@@ -152,7 +152,7 @@ const Profile = ({ navigation, route }) => {
 
                             <View style={styles.roleBadge}>
                                 <Text style={styles.roleBadgeText}>
-                                    {profile.role === 'admin' ? 'Administrator' : 'Member'}
+                                    {profile.role = 'User'}
                                 </Text>
                             </View>
                         </View>
