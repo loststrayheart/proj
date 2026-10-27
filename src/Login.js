@@ -37,14 +37,17 @@ const Login = ({ navigation }) => {
         try {
             const { data: userData, error } = await supabase
                 .from('users')
-                .select('role')
+                .select('role, username')
                 .eq('users_id', userId)
                 .single();
 
             if (!error && userData?.role === 'admin') {
                 navigation?.navigate('Homeadmin');
             } else {
-                navigation?.navigate('Homeuser');
+                navigation?.navigate('Homeuser', {
+                    userId: userId,
+                    username: userData?.username,
+                });
             }
         } catch (err) {
             console.log('Error checking role:', err);

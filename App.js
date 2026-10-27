@@ -12,6 +12,7 @@ import AddCategory from './src/AddCategory';
 import MostSearch from './src/MostSearch';
 import Result from './src/Result';
 import History from './src/History';
+import Profile from './src/Profile';
 
 const Stack = createNativeStackNavigator();
 
@@ -66,6 +67,10 @@ export default function App() {
           <Stack.Screen
             name="History"
             component={History}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={Profile}
           />
         </Stack.Navigator>
       </NavigationContainer>

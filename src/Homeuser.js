@@ -56,7 +56,7 @@ const GOOGLE_AUDIO_CONFIG =
         ? { encoding: 'LINEAR16', sampleRateHertz: 16000 }
         : { encoding: 'AMR_WB', sampleRateHertz: 16000 };
 
-const Homeuser = ({ navigation }) => {
+const Homeuser = ({ navigation, route }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [forYouList, setForYouList] = useState([]);
@@ -160,7 +160,10 @@ const Homeuser = ({ navigation }) => {
                     <TouchableOpacity
                         style={styles.avatarButton}
                         activeOpacity={0.7}
-                        onPress={() => navigation?.navigate('Login')}
+                        onPress={() => navigation?.navigate('Profile', {
+                            userId: route?.params?.userId,
+                            username: route?.params?.username,
+                        })}
                     >
                         <Feather name="user" size={24} color="#111111" />
                     </TouchableOpacity>
@@ -306,16 +309,16 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#D1D1D1',
         borderWidth: 1.5,
-        borderColor: '#F0C0B6',
+        borderColor: '#C5C5C5',
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
         shadowRadius: 3,
-        elevation: 1,
+        elevation: 2,
     },
     appTitle: {
         fontSize: 48,
