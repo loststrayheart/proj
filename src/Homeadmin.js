@@ -141,6 +141,27 @@ const Homeadmin = ({ navigation, route }) => {
                                 <Feather name="chevron-right" size={24} color="#1E1E1E" />
                             </View>
                         </TouchableOpacity>
+
+                    </View>
+
+                    <View style={styles.gridRow}>
+                        {/* Search User Card */}
+                        <TouchableOpacity
+                            style={[styles.card, styles.searchUserCard]}
+                            activeOpacity={0.8}
+                            onPress={() => {
+                                navigation?.navigate('SearchUser');
+                            }}
+                        >
+                            <View style={[styles.iconCircle, styles.searchUserIconCircle]}>
+                                <Feather name="users" size={26} color="#FFFFFF" />
+                            </View>
+
+                            <View style={styles.cardFooter}>
+                                <Text style={styles.cardTitle}>Search User</Text>
+                                <Feather name="chevron-right" size={24} color="#1E1E1E" />
+                            </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </ScrollView>
@@ -281,6 +302,13 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
         color: '#111827',
+    },
+    searchUserCard: {
+        backgroundColor: '#D6E8F9',
+    },
+
+    searchUserIconCircle: {
+        backgroundColor: '#6CA6D9',
     },
 });
 
